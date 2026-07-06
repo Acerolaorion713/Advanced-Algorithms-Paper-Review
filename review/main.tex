@@ -1,0 +1,77 @@
+\documentclass[12pt]{article}
+
+% =========================
+% Basic Packages
+% =========================
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+% =========================
+% Hyperref Settings
+% =========================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+% =========================
+% Theorem Environments
+% =========================
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+
+% =========================
+% Document Information
+% =========================
+\title{
+    Review of \textit{Changing Base without Losing Space}
+}
+
+\author{
+    Advanced Algorithms Paper Review
+}
+
+\date{\today}
+
+% =========================
+% Document Body
+% =========================
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This review discusses the paper \textit{Changing Base without Losing Space} by Yevgeniy Dodis, Mihai P\u{a}tra\c{s}cu, and Mikkel Thorup. The paper studies how to change the representation base of data without losing space while preserving locality. Its two main results are an optimal-space vector representation supporting constant-time reads and writes, and an online prefix-free encoding scheme with near-optimal redundancy and logarithmic memory.
+\end{abstract}
+
+
+\tableofcontents
+
+\newpage
+
+% =========================
+% Sections
+% =========================
+
+\input{sections/01_introduction}
+
+% 后续部分做到哪一节再取消注释或新增对应文件。
+
+% =========================
+% Bibliography
+% =========================
+
+% 如果后续使用 BibTeX，再取消下面两行注释。
+% \bibliographystyle{plain}
+% \bibliography{references}
+
+\end{document}
