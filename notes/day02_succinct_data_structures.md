@@ -1,0 +1,281 @@
+# Day 2 Notes: Succinct Data Structures Background
+
+## 阅读范围
+
+本次阅读范围主要是论文 *Changing Base without Losing Space* 的 Section 1.1 和 Section 1.3，重点围绕向量表示问题、succinct data structures 背景，以及 arithmetic coding 与本文方法的区别展开。
+
+具体来说，本次阅读关注以下主题：
+
+向量表示问题的形式化定义；
+
+信息论最优空间 `⌈n log₂ Σ⌉` 的来源；
+
+整体 base conversion 为什么空间最优但局部性差；
+
+逐元素定长编码为什么局部访问好但会产生线性冗余；
+
+succinct data structures 中 redundancy、local access 和 Word RAM 模型的含义；
+
+此前相关方法与本文 Theorem 1 的差别；
+
+arithmetic coding 为什么虽然接近熵界，但不能作为本文所需的局部换基方案。
+
+本次阅读的目标是为正式 review 的 `review/sections/02_problem_and_motivation.tex` 准备材料。Day 1 已经完成论文总览，本次 notes 不再泛泛介绍两个主结果，而是集中解释第一个主结果背后的问题动机：为什么一个看起来很基础的向量表示问题，在要求同时满足最优空间和常数时间读写时会变得困难。
+
+---
+
+## 内容总结
+
+这一天的阅读重点是理解论文为什么把向量表示看作一个重要的 succinct data structures 问题。设有一个长度为 `n` 的向量 `A[1..n]`，每个元素来自大小为 `Σ` 的有限字母表。所有可能向量共有 `Σ^n` 个，因此信息论上至少需要 `log₂(Σ^n) = n log₂ Σ` bits 来区分它们，向上取整后得到最优空间 `⌈n log₂ Σ⌉` bits。这个下界本身并不难，真正困难的是在达到该空间的同时还支持对任意元素的快速读取和修改。
+
+最直接达到最优空间的方法是把整个向量看成一个大整数，再整体转换成二进制。这种方法本质上是全局编码，空间上没有浪费，但局部性很差。一个位置的信息不一定集中在编码中的固定小片段里，因此读取或修改 `A[i]` 往往需要处理整个表示。相反，若每个元素独立使用 `⌈log₂ Σ⌉` bits 存储，则每个元素的位置清楚，读写都很容易；但当 `Σ` 不是 `2` 的幂时，每个元素都会因为 bit 数必须取整数而浪费空间，最终产生 `Ω(n)` bits 的线性冗余。
+
+论文的 Theorem 1 之所以重要，正是因为它打破了这个直觉上的二选一：既不接受逐元素编码的线性冗余，也不接受整体编码的非局部性，而是在 Word RAM 模型下用精确的 `⌈n log₂ Σ⌉` bits 表示向量，并支持 `O(1)` 时间读取和修改任意元素。这说明在向量表示这个基础问题上，信息论最优空间和局部访问并不是天然矛盾的。
+
+Section 1.3 对 arithmetic coding 的讨论进一步说明，本文解决的不是普通压缩问题。Arithmetic coding 可以在熵意义上接近 `n log₂ Σ` bits，但它的输出通常依赖全局区间细分过程。某个符号的编码结果可能受到前后很多符号影响，在 bounded precision 实现中还可能出现 outstanding bits 和 bursty output。因此，arithmetic coding 适合整体压缩，却不适合支持最坏情况下的常数时间随机访问与局部修改。本文真正需要的是一种局部、可逆、低冗余的 base conversion 技术。
+
+------
+
+## 论文具体解析
+
+## 向量表示问题
+
+论文首先考虑的对象是一个向量：
+
+```text
+A[1..n], A[i] ∈ Σ
+```
+
+这里 `Σ` 在论文中既表示字母表，也常被用来表示字母表大小。由于每个位置有 `Σ` 种可能，整个向量共有：
+
+```text
+Σ^n
+```
+
+种可能取值。为了唯一表示所有可能的向量，编码至少需要：
+
+```text
+log₂(Σ^n) = n log₂ Σ
+```
+
+bits。由于实际存储空间必须是整数 bit 数，所以信息论最优空间写作：
+
+```text
+⌈n log₂ Σ⌉ bits
+```
+
+这一定义是论文第一个主结果的基准。Theorem 1 的目标不是“接近”这个空间，而是精确达到这个空间，并且还要支持任意位置的常数时间读写。
+
+这个问题在 succinct data structures 中很基础。Succinct data structures 关心的是在接近信息论下界的空间内保存对象，同时还支持有用的查询或更新操作。向量表示是最简单也最核心的例子之一，因为它没有复杂查询，只有最基本的 read 和 write。如果连这种基本对象都必须在最优空间和局部访问之间做取舍，那么很多更复杂的压缩数据结构也可能面临类似限制。本文的结果说明，至少对于这个问题，这种取舍不是必然的。
+
+------
+
+## 整体 Base Conversion 的局部性问题
+
+达到 `⌈n log₂ Σ⌉` bits 的自然方法是整体 base conversion。可以将向量看成一个 `Σ` 进制数：
+
+```text
+A[1], A[2], ..., A[n]
+```
+
+对应一个位于区间：
+
+```text
+[0, Σ^n - 1]
+```
+
+中的大整数。然后把这个大整数转换成二进制表示。由于这个区间中正好有 `Σ^n` 种可能，这种方法可以达到信息论最优空间。
+
+但是这种方法的缺陷是局部性很差。向量中的一个元素不是简单存放在某个固定 bit 段中，而是参与整个大整数的数值表达。读取某个 `A[i]` 时，通常需要对整体数值做除法或取模等操作才能恢复对应位置。修改某个 `A[i]` 时，虽然从数学上可以更新这个大整数，但其二进制表示可能在许多 bit 上发生进位或连锁变化。因此它不是一个适合局部访问的数据结构。
+
+从 review 写作角度看，这里要强调：整体编码的缺点不是空间，而是操作。它证明了最优空间“存在”，但没有给出可用的数据结构。本文要解决的问题正是如何把这个全局存在性结果变成支持局部操作的表示。
+
+------
+
+## 逐元素定长编码的冗余问题
+
+另一种自然方法是逐元素独立编码。每个元素来自大小为 `Σ` 的字母表，因此可以用：
+
+```text
+⌈log₂ Σ⌉ bits
+```
+
+保存一个元素。这样总空间为：
+
+```text
+n⌈log₂ Σ⌉ bits
+```
+
+这种方案的优点是局部性很好。由于每个元素占用固定长度，`A[i]` 的位置可以直接计算出来。读取和修改都只需要访问对应的固定 bit 段。
+
+问题在于，当 `Σ` 不是 `2` 的幂时，`log₂ Σ` 不是整数，而每个元素又必须占用整数个 bits。于是每个元素都会产生：
+
+```text
+⌈log₂ Σ⌉ - log₂ Σ
+```
+
+bits 的浪费。这个浪费虽然对单个元素来说小于一个 bit，但它会被重复 `n` 次，因此总冗余为：
+
+```text
+n⌈log₂ Σ⌉ - n log₂ Σ = Ω(n)
+```
+
+论文用十进制数字作为直观例子。若 `Σ = 10`，则：
+
+```text
+log₂ 10 ≈ 3.322
+⌈log₂ 10⌉ = 4
+```
+
+每个十进制数字理论上只需要约 `3.322` bits，但定长二进制表示必须使用 `4` bits。因此每个位置浪费约：
+
+```text
+4 - log₂ 10 ≈ 0.678 bits
+```
+
+对于长度为 `n` 的十进制向量，总浪费约为：
+
+```text
+0.678n bits
+```
+
+这就是论文所说的线性冗余。它说明逐元素编码虽然非常简单、非常局部，但在空间上没有达到 succinct data structures 想要的最优目标。
+
+------
+
+## Succinct Data Structures 视角
+
+在 succinct data structures 中，一个表示通常被分成两部分来看。第一部分是信息论上不可避免的主空间，例如这里的 `n log₂ Σ` bits。第二部分是为了支持操作而额外付出的 redundancy。一个常见目标是让总空间写成：
+
+```text
+information-theoretic minimum + small redundancy
+```
+
+对于向量表示问题，逐元素编码的 redundancy 是线性的，因此并不够 succinct。早期 succinct data structures 技术可以在支持常数时间访问的同时，将空间做到：
+
+```text
+n log₂ Σ + O(n / log n) bits
+```
+
+之后的相关工作进一步降低 redundancy，例如达到 `O(n / log² n)` 或更一般的 `n / log^{O(1)} n` 类型冗余。论文在 Introduction 中提到这些结果，是为了说明在本文之前，人们已经可以把冗余降到低阶项，但仍然没有完全消除它。
+
+本文 Theorem 1 的强处在于，它不是继续把 redundancy 从一个低阶项改进为另一个更小的低阶项，而是直接达到：
+
+```text
+⌈n log₂ Σ⌉ bits
+```
+
+也就是说，除了不可避免的向上取整，不再额外付出空间。这一点在理论上很强，因为它说明常数时间局部访问并不必然要求额外 redundancy。
+
+------
+
+## Word RAM 模型
+
+论文中的 Theorem 1 是在 Word RAM 模型下表述的。Word RAM 是理论计算机科学中用来描述普通命令式机器的一种模型。内存可以随机访问，并被组织成 word，每个 word 有 `w` bits。为了能够存储下标和指针，通常假设：
+
+```text
+w = Ω(log n)
+```
+
+论文所需的基本操作包括加法、乘法和除法，并将这些 word-level 操作视为常数时间。这个模型对本文非常重要，因为信息 carrier 技术会频繁使用整数除法、乘法、取商和取余来完成局部可逆映射。如果不在 Word RAM 中允许这些操作为常数时间，那么论文的 `O(1)` read/write 结论就不能直接成立。
+
+因此，在写正式 review 时需要说明：本文的结果不是 bit-probe 意义下只允许访问单个 bit 的朴素模型，而是在 Word RAM 中利用 word-level arithmetic 实现局部换基。这也解释了为什么论文强调预计算常数数量、word constants 和常数时间算术操作。
+
+------
+
+## 与已有结果的对比
+
+论文在 Section 1.1 中列举了一系列此前的结果。它们的共同点是都试图在接近信息论最优空间的同时支持常数时间访问，但仍然保留某种形式的 redundancy。
+
+从本文主线来看，旧结果可以概括为：
+
+```text
+space = n log₂ Σ + redundancy
+access = O(1)
+```
+
+其中 redundancy 可以是：
+
+```text
+O(n / log n)
+O(n / log² n)
+n / log^{O(1)} n
+```
+
+这些结果已经说明线性冗余不是必要的，但没有说明 redundancy 可以完全消失。本文的 Theorem 1 则把目标推进到：
+
+```text
+space = ⌈n log₂ Σ⌉ bits
+access = O(1)
+update = O(1)
+```
+
+这个结论的非凡之处在于，它直接贴住信息论下界，同时还支持修改。只支持读取已经很强，支持写入更进一步，因为写入意味着局部改变一个元素时，编码也必须能够局部修正，而不能让变化沿整个结构传播。
+
+------
+
+## Arithmetic Coding 对比
+
+从信息论角度看，arithmetic coding 是最自然的 base conversion 方法之一。它把输入序列映射到 `[0,1]` 区间中的一个子区间，再输出该子区间内的一个二进制数。若输入符号来自分布 `D`，arithmetic coding 的期望长度可以接近：
+
+```text
+nH(D) + O(1)
+```
+
+其中 `H(D)` 是熵。如果 `D` 是大小为 `Σ` 的均匀分布，那么：
+
+```text
+H(D) = log₂ Σ
+```
+
+于是长度接近：
+
+```text
+n log₂ Σ + O(1)
+```
+
+这看起来似乎已经解决了换基时的空间浪费问题。但论文强调，arithmetic coding 缺少本文所需的 worst-case locality。
+
+Arithmetic coding 的编码过程是递归细分区间。第一个符号决定一个大区间，第二个符号继续在该区间内细分，后续符号不断缩小当前区间。最终输出的二进制串不是各个符号独立拼接而成，而是整个序列共同决定的区间表示。因此，一个位置的符号可能影响输出中的很多 bits，反过来读取一个位置也可能需要恢复大量上下文。
+
+实际 bounded precision 实现中还会出现 outstanding bits。编码器有时不能立即确定下一个输出 bit，只能先记录有多少位处于未决状态。等到当前区间明确落到某一侧后，编码器才一次性输出一串 bits。这种行为说明输出可能是 bursty 的：一个输入符号可能暂时不产生输出，而某个后续符号可能触发大量输出。
+
+这与本文目标不兼容。本文需要的是局部可解码、局部可修改的表示。对于向量表示，读取 `A[i]` 应该只访问常数个 word；修改 `A[i]` 也应该只改变常数范围内的信息。Arithmetic coding 虽然空间效率高，但它是全局压缩方法，而不是局部数据结构。
+
+------
+
+## 我的理解
+
+这部分最关键的理解是：本文标题中的 “changing base” 不是普通意义上的进制转换，而是带有数据结构要求的局部换基。普通进制转换当然可以把 `Σ` 进制数转成二进制数，并达到最优空间；但这种转换把所有位置的信息混合在一起，破坏了局部访问。逐元素编码则走向另一个极端：每个位置完全局部，但每个位置都独立向上取整，导致线性空间浪费。
+
+本文想要的是第三种状态：让多个位置之间共享取整误差，但又不让信息完全混合到全局。后面出现的 SOLE encoding 和 information carrier lemma 都是在实现这种思想。它们不是简单压缩数据，而是在局部范围内重新分配信息，使某些不能直接写入二进制内存的非 `2` 的幂大小区间，可以借助附近的信息块低冗余地落入二进制表示。
+
+从这个角度看，Day 2 的内容是整篇 review 的问题地基。只有先讲清楚逐元素编码为什么浪费、整体编码为什么不局部、arithmetic coding 为什么不够用，后面读者才能理解 SOLE 和 information carrier 的必要性。否则后面的技术会显得像复杂的数学技巧，而不是为了解决一个明确的结构性矛盾。
+
+------
+
+## 可以写进 review 的正式段落草稿
+
+The vector representation problem captures the central tension studied in the paper. A vector \(A[1..n]\) over an alphabet of size \(\Sigma\) contains \(n\log_2\Sigma\) bits of information, and therefore admits a representation using \(\lceil n\log_2\Sigmaceil\) bits by treating the whole vector as one large integer. This global representation, however, destroys locality: a single entry is not stored in an independently addressable region of memory. The opposite approach is to store each entry separately using \(\lceil\log_2\Sigmaceil\) bits. This gives immediate local access, but if \(\Sigma\) is not a power of two, the rounding loss is repeated \(n\) times and becomes linear redundancy.
+
+From the perspective of succinct data structures, the striking point of Theorem 1 is that this trade-off is not inherent. Previous representations could support constant-time access only with additional lower-order redundancy, such as \(n/\log^{O(1)} n\) bits. Dodis, P\u{a}tra\c{s}cu and Thorup show that the redundancy can be removed entirely: on the Word RAM, the vector can be represented in exactly \(\lceil n\log_2\Sigmaceil\) bits while supporting constant-time reads and writes.
+
+Arithmetic coding does not resolve this issue, even though it is space-efficient as a compression method. Its interval-refinement process makes the representation inherently global: the bits produced for one part of the input may depend on many surrounding symbols, and bounded-precision implementations can delay output through outstanding bits. Thus arithmetic coding achieves good entropy bounds but not the worst-case locality required for a data structure. The paper therefore seeks a different kind of base conversion, one that is locally decodable, locally updatable, and still space-optimal.
+
+------
+
+## 今日疑问和待验证问题
+
+需要进一步核验 P\u{a}tra\c{s}cu 2008 的 `Succincter` 结果中 query time `O(t)` 与 redundancy 之间的具体 trade-off，后续写 related work 时不能只凭 Introduction 的简短描述。
+
+需要进一步区分本文的 vector representation 与 rank/select 问题之间的关系。Introduction 说本文结果形成了与 rank/select lower bound 的对比，但 Day 2 暂时只需要知道它说明本文绕开了某些常见 succinct data structures 技术路线。
+
+需要在 Day 8 相关研究整理时补充论文之后是否有关于 locally decodable base conversion、succinct indices 或 compressed array representation 的后续工作。
+
+------
+
+## 明日衔接
+
+明天计划阅读 Section 1.2 和 Appendix A 中与 prefix-free encoding、cascade construction、extension attack 有关的部分。Day 2 主要解释第一个主结果的动机，Day 3 则应解释第二个主结果的动机。两天合起来会形成 `review/sections/02_problem_and_motivation.tex` 的完整基础：一半讲向量表示为什么重要，另一半讲在线 prefix-free encoding 为什么重要。
+
+Day 2 的内容也会为 Day 4 的 SOLE encoding 做准备。今天已经明确了问题本质是“局部换基时如何避免整数 bit 取整浪费”。SOLE encoding 正是第一个具体展示这种思想的构造：加入 EOF 后字母表从 `[B]` 变为 `[B+1]`，而 SOLE 要把这个扩大后的字母表重新局部转换回 `[B]` blocks。
