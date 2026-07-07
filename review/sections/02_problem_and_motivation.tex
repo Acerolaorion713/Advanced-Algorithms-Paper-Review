@@ -1,0 +1,145 @@
+\section{Problem and Motivation}
+
+\subsection{Vector Representation as a Succinct Data Structure Problem}
+
+The first main problem studied in the paper is the representation of a vector
+\[
+    A[1..n],
+\]
+where each entry \(A[i]\) belongs to a finite alphabet \(\Sigma\). As in the paper, we use \(\Sigma\) both for the alphabet itself and, when the meaning is clear, for its cardinality.
+
+There are \(\Sigma^n\) possible vectors of length \(n\). Therefore, any representation that distinguishes all such vectors must use at least
+\[
+    \log_2(\Sigma^n)
+    =
+    n \log_2 \Sigma
+\]
+bits of information. Since an actual binary representation must use an integral number of bits, the information-theoretic optimum is
+\[
+    \left\lceil n \log_2 \Sigma \right\rceil
+\]
+bits.
+
+This lower bound is easy to state, but it is not easy to achieve together with efficient operations. The data structure must not only store the vector using optimal space, but also support reading and writing an arbitrary entry \(A[i]\) in constant time. This is why the problem is a basic example in succinct data structures: it asks whether one can simultaneously achieve information-theoretic optimality and local access.
+
+\subsection{Global Base Conversion and the Loss of Locality}
+
+A direct way to achieve the optimal space bound is to view the entire vector as one large integer. More precisely, the sequence
+\[
+    A[1], A[2], \ldots, A[n]
+\]
+can be interpreted as a number in the range
+\[
+    \{0,1,\ldots,\Sigma^n-1\}.
+\]
+Writing this number in binary gives a representation using exactly
+\[
+    \left\lceil n \log_2 \Sigma \right\rceil
+\]
+bits.
+
+The problem is that this representation is global. A single entry \(A[i]\) is not stored in a fixed, independently addressable memory region. Recovering it generally requires arithmetic on the whole encoded number, and modifying it may affect the binary representation in a non-local way. Thus, although global base conversion proves that the optimal space is achievable in principle, it does not give a useful local data structure.
+
+This distinction is central to the paper. The goal is not merely to compress a vector into the fewest possible bits. The goal is to perform base conversion while preserving locality.
+
+\subsection{Naive Local Encoding and Linear Redundancy}
+
+The opposite approach is to encode each entry separately. Since each entry has \(\Sigma\) possible values, one can store every entry using
+\[
+    \left\lceil \log_2 \Sigma \right\rceil
+\]
+bits. Then the position of \(A[i]\) is easy to compute, and both reading and writing are local operations.
+
+However, this representation uses
+\[
+    n \left\lceil \log_2 \Sigma \right\rceil
+\]
+bits in total. When \(\Sigma\) is not a power of two, this is larger than the information-theoretic optimum. The redundancy is
+\[
+    n\left\lceil \log_2 \Sigma \right\rceil
+    -
+    n\log_2 \Sigma.
+\]
+Although the loss per entry is less than one bit, it is repeated \(n\) times and therefore becomes linear.
+
+For example, when \(\Sigma = 10\), each decimal digit contains only
+\[
+    \log_2 10 \approx 3.322
+\]
+bits of information. But storing one decimal digit in a fixed-width binary field requires
+\[
+    \left\lceil \log_2 10 \right\rceil = 4
+\]
+bits. Thus, each digit wastes approximately
+\[
+    4 - \log_2 10 \approx 0.678
+\]
+bits, and a vector of \(n\) decimal digits wastes about \(0.678n\) bits.
+
+This illustrates the basic tension. Global encoding is space-optimal but non-local. Local fixed-width encoding is easy to access but wastes linear space. The main result of the paper shows that this tension is not inherent.
+
+\subsection{Redundancy in Succinct Representations}
+
+In succinct data structures, the space usage of a representation is often compared with the information-theoretic minimum. The difference between the actual space and the minimum is called redundancy. For the vector representation problem, the target is therefore not merely
+\[
+    n\log_2 \Sigma + o(n)
+\]
+bits, but ideally the exact bound
+\[
+    \left\lceil n \log_2 \Sigma \right\rceil.
+\]
+
+Before this paper, known techniques could support constant-time access while using space of the form
+\[
+    n\log_2 \Sigma + \text{redundancy}.
+\]
+The redundancy had been reduced to lower-order terms, such as \(O(n/\log n)\), \(O(n/\log^2 n)\), or more generally \(n/\log^{O(1)} n\) in suitable settings. These results already showed that the naive linear redundancy was not necessary.
+
+Theorem 1 goes further. It removes the redundancy entirely. On the Word RAM, the paper shows that one can represent the vector using exactly
+\[
+    \left\lceil n \log_2 \Sigma \right\rceil
+\]
+bits while supporting both reading and writing any entry in \(O(1)\) time.
+
+The write operation is particularly important. A representation that only supports queries might still hide a highly global encoding. Supporting updates means that changing one entry must be handled locally, without propagating changes through the whole representation.
+
+\subsection{The Role of the Word RAM Model}
+
+The paper states its result in the Word RAM model. In this model, memory is randomly addressable and divided into words of \(w\) bits, where
+\[
+    w = \Omega(\log n).
+\]
+This assumption ensures that an index or pointer can fit into a constant number of words.
+
+The paper uses standard word-level arithmetic operations, including addition, multiplication, and division, as constant-time operations. This matters because the later constructions are based on reversible arithmetic transformations. They repeatedly combine values, split them into quotients and remainders, and move information between ranges whose sizes are not powers of two.
+
+Thus, the constant-time guarantee in Theorem 1 should be understood as a Word RAM guarantee. The construction is not merely a bit-by-bit coding argument; it uses word-level arithmetic to obtain local base conversion.
+
+\subsection{Why Arithmetic Coding Is Not Enough}
+
+Arithmetic coding is the standard information-theoretic method for converting between alphabets. Given a distribution \(D\), it can encode a sequence of \(n\) symbols using about
+\[
+    nH(D) + O(1)
+\]
+bits in expectation, where \(H(D)\) is the binary entropy of \(D\). For the uniform distribution over an alphabet of size \(\Sigma\), this becomes
+\[
+    n\log_2 \Sigma + O(1).
+\]
+
+At first glance, arithmetic coding seems to solve the same space problem as the paper. It can represent symbols from a non-binary alphabet in nearly optimal binary space. However, arithmetic coding does not provide the worst-case locality required for a data structure.
+
+The reason is that arithmetic coding represents the whole sequence by an interval. Each symbol refines the current interval, and the final output is a binary number lying inside the final interval. Consequently, the output bits are not naturally partitioned by input position. The representation of one symbol may depend on many surrounding symbols.
+
+This non-locality is also visible in bounded-precision implementations. Such implementations may delay output when the current interval does not yet determine the next bit. The encoder then maintains a number of outstanding bits and later emits a burst of bits once the interval becomes sufficiently separated. This bursty behavior is incompatible with worst-case local access.
+
+Therefore, arithmetic coding is an excellent global compression technique, but it is not a solution to the vector representation problem considered in this paper. The paper needs a different kind of base conversion: one that is reversible, local, and compatible with constant-time reads and writes.
+
+\subsection{Motivational Summary}
+
+The first problem of the paper can now be summarized as follows. A global representation can achieve
+\[
+    \left\lceil n\log_2\Sigma \right\rceil
+\]
+bits but loses locality. A local fixed-width representation supports efficient operations but wastes \(\Omega(n)\) bits when \(\Sigma\) is not a power of two. Arithmetic coding achieves excellent compression but remains globally dependent and does not support worst-case local access.
+
+The contribution of the paper is to show that this apparent trade-off is avoidable. The authors construct a local base-conversion technique that keeps the representation at the information-theoretic optimum while preserving constant-time access and updates. This technique is first illustrated by SOLE encoding, then abstracted into information carriers, and finally applied to the optimal-space vector representation.
