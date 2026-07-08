@@ -134,6 +134,208 @@ This non-locality is also visible in bounded-precision implementations. Such imp
 
 Therefore, arithmetic coding is an excellent global compression technique, but it is not a solution to the vector representation problem considered in this paper. The paper needs a different kind of base conversion: one that is reversible, local, and compatible with constant-time reads and writes.
 
+\subsection{Online Prefix-Free Encoding as a Second Motivation}
+
+The second main problem studied in the paper is online prefix-free encoding. Suppose a stream of \(n\) bits arrives online, where the final length \(n\) is not known in advance. The goal is to produce an encoding that is prefix-free: no valid encoded message should be a prefix of another valid encoded message. Equivalently, the encoded message should be self-delimiting, so that the decoder can determine where the message ends without receiving the length \(n\) separately.
+
+In information theory, this task is closely related to universal coding. In computer science and cryptography, the same requirement is often described using the terms prefix-free code or self-delimiting code. The important point in this paper is that the encoding must be produced online and with very small memory. The encoder cannot first read the whole input, compute its length, and then go back to write the length at the front. Such a solution would require storing the entire input stream, which is incompatible with the desired \(O(\log n)\)-bit memory bound.
+
+Thus, the problem is not merely to represent an unknown-length string compactly. The problem is to do so while satisfying three simultaneous constraints:
+\[
+    \text{prefix-freeness}, \qquad
+    \text{online processing}, \qquad
+    \text{low redundancy and low memory}.
+\]
+
+\subsection{Why Elias Codes Are Not Enough}
+
+The textbook solution for universal coding is given by Elias codes. For example, Elias delta-code encodes the length \(n\) first and then appends the \(n\) bits of data. This gives an encoding length of
+\[
+    n + O(\log n)
+\]
+bits. By applying the same idea recursively, Elias omega-code obtains a length of the form
+\[
+    n + \log_2 n + \log_2 \log_2 n + \cdots + O(\log^* n),
+\]
+which is optimal up to lower-order terms.
+
+However, Elias codes are inherently offline for the purpose of this paper. Their structure requires the length information to be written before the data. In the online setting, the encoder does not know \(n\) when the first input bits arrive. If it waits until the end of the stream to learn \(n\), it must either buffer the entire input or output the length after the data, which does not give the usual self-delimiting structure. Therefore, Elias codes show what overhead is information-theoretically possible, but they do not solve the low-memory online encoding problem considered in the paper.
+
+\subsection{The Naive Block-Marker Method and Linear Redundancy}
+
+A simple online solution is to divide the input into fixed-size blocks. Suppose each block has \(b\) bits. The encoder can output each block immediately, and append one extra marker bit indicating whether this block is the last block. This method is online and easy to decode.
+
+The cost is that one extra bit is paid for every \(b\) input bits. For an \(n\)-bit input, the redundancy is therefore
+\[
+    \Theta(n/b).
+\]
+When \(b\) is fixed, this is linear in \(n\). Even if \(b\) is large in practice, for example \(b = 128\), the scheme still wastes a constant fraction of the stream size. The paper emphasizes that this is too high a price to pay merely for encoding where the stream ends.
+
+This naive construction also suggests a misleading trade-off: to reduce redundancy, one must increase the block size, but increasing the block size means buffering more input. This gives the impression that small-space online prefix-free encoding may necessarily require linear redundancy. Maurer and Sjödin conjectured such a limitation in the small-space online setting. The paper refutes this intuition by showing that the apparent trade-off comes from thinking in terms of integral bits.
+
+\subsection{From EOF Markers to Base Conversion}
+
+The key observation is that an end-of-file marker should not be treated as one full additional bit per block. Let
+\[
+    B = 2^b.
+\]
+A normal \(b\)-bit block is an element of
+\[
+    [B] = \{0,1,\ldots,B-1\}.
+\]
+If we add one special end-of-file symbol \(\mathsf{eof}\), the alphabet size becomes
+\[
+    B + 1
+\]
+rather than \(2B\). The additional information per symbol is therefore
+\[
+    \log_2(B+1) - \log_2 B
+    =
+    \log_2\left(1+\frac{1}{B}\right),
+\]
+which is much smaller than one bit when \(B\) is large.
+
+Thus, the real problem is not how to attach a separate marker bit to each block. The real problem is a local base-conversion problem:
+\[
+    \text{convert a stream over an alphabet of size } B+1
+    \text{ back into } B\text{-ary blocks}.
+\]
+If this conversion can be done online, locally, and with low redundancy, then prefix-freeness can be obtained without paying one bit per block.
+
+The paper illustrates this idea with a simple estimate. Suppose the stream contains \(n\) blocks of \(b\) bits and assume temporarily that
+\[
+    n \leq 2^b.
+\]
+After adding an EOF symbol, one needs to encode \(n+1\) symbols from an alphabet of size \(2^b+1\). An ideal base conversion would use
+\[
+    (n+1)\log_2(2^b+1)
+\]
+bits. Since the original data contains \(nb\) bits, the overhead is
+\[
+    (n+1)\log_2(2^b+1) - nb.
+\]
+Using
+\[
+    \log_2(2^b+1)
+    =
+    b + \log_2\left(1+\frac{1}{2^b}\right),
+\]
+this overhead becomes roughly
+\[
+    b + n\log_2\left(1+\frac{1}{2^b}\right).
+\]
+Under the assumption \(n \leq 2^b\), this is only
+\[
+    b + O(1).
+\]
+The remaining challenge is to realize this conversion efficiently and locally. Section 2 begins with the SOLE encoding as a simple construction for this block setting, and Section 5 later develops the full online prefix-free code for binary streams.
+
+\subsection{Theorem 2 and Its Significance}
+
+The paper's second main theorem states that there exists a universal code mapping \(n\) input bits to
+\[
+    n + \log_2 n + O(\log\log n)
+\]
+bits, while both encoding and decoding use only
+\[
+    O(\log n)
+\]
+bits of memory and take constant time per operation.
+
+This result is significant because it combines properties that are usually achieved separately. Elias codes give near-optimal length but are not suitable for the online low-memory setting. The naive block-marker method is online but incurs linear redundancy. The construction in this paper is both online and near-optimal in space. It shows that small-space online prefix-free encoding does not require a linear overhead.
+
+\subsection{Cryptographic Motivation: Cascade Constructions}
+
+Prefix-free encoding is also important in cryptographic constructions that process variable-length messages. Many such constructions first define a compression function
+\[
+    f : \{0,1\}^s \times \{0,1\}^b \to \{0,1\}^s,
+\]
+where \(b\) is the block length and \(s\) is the state or buffer length. A long message
+\[
+    M = m_1m_2\cdots m_n
+\]
+is split into \(b\)-bit blocks and processed by the cascade mode:
+\[
+    x_0 = IV,
+\]
+and for \(i = 1,\ldots,n\),
+\[
+    x_i = f(x_{i-1},m_i).
+\]
+The final output is
+\[
+    y = x_n.
+\]
+
+This general pattern appears in many settings, including CBC-MAC, cascade pseudorandom functions, Merkle--Damg{\aa}rd hash functions, and domain extension for message authentication codes. The security issue is that cascade constructions naturally expose an ancestor-descendant relation between messages. If
+\[
+    M_2 = M_1M',
+\]
+then
+\[
+    \operatorname{Cascade}(M_2,f,IV)
+    =
+    \operatorname{Cascade}(M',f,\operatorname{Cascade}(M_1,f,IV)).
+\]
+Thus, the output on a shorter message can become the internal state for computing the output on a longer message.
+
+This is precisely the structure exploited by extension attacks. If valid messages are encoded in a prefix-free way, then no valid message can be a prefix of another valid message. Therefore, the cascade computation for two different valid messages does not place one message as an ancestor of the other in the computation tree. Prefix-free encoding is consequently a natural and general defense against extension attacks.
+
+\subsection{Examples of Extension Attacks}
+
+For CBC-MAC, the compression function has the form
+\[
+    f_k(x,m) = g_k(x \oplus m),
+\]
+where \(g_k\) is a block cipher under key \(k\). The CBC-MAC of a one-block message \(m_1\) is
+\[
+    y = \operatorname{CBC\mbox{-}MAC}(k,m_1) = g_k(m_1).
+\]
+If messages are not encoded in a prefix-free way, an attacker can define
+\[
+    m_2 = m_1 \oplus y.
+\]
+Then
+\[
+    \operatorname{CBC\mbox{-}MAC}(k,m_1m_2)
+    =
+    g_k(m_2 \oplus y)
+    =
+    g_k((m_1 \oplus y)\oplus y)
+    =
+    g_k(m_1)
+    =
+    y.
+\]
+Thus, after learning the MAC of \(m_1\), the attacker can forge the MAC of a longer message \(m_1m_2\). Prefix-free encoding prevents this kind of confusion between messages of different lengths.
+
+For cascade PRFs, suppose
+\[
+    F_k(M) = \operatorname{Cascade}(M,f,k).
+\]
+If \(M_2 = M_1M'\), then
+\[
+    F_k(M_2)
+    =
+    F_{F_k(M_1)}(M').
+\]
+Thus, knowing the PRF value on an ancestor message allows the adversary to compute values on descendant messages, contradicting the intended pseudorandomness. Prefix-free encoding ensures that valid messages do not have this ancestor-descendant relation.
+
+For Merkle--Damg{\aa}rd hash functions, the same structural problem appears as length extension. If
+\[
+    y = H(M),
+\]
+then the cascade structure allows one to continue from state \(y\) and compute a value corresponding to an extended message. In an ideal random oracle, knowing \(H(M)\) should not allow one to compute a related value for an extension of \(M\). Prefix-free encoding gives a simple way to avoid this problem by ensuring that a completed valid message cannot be extended into another valid message.
+
+\subsection{Motivational Summary for the Second Problem}
+
+The online prefix-free encoding problem is therefore motivated from two directions. From the data representation perspective, it asks how to encode an unknown-length stream without paying a linear number of marker bits. From the cryptographic perspective, it provides a clean way to make cascade-based constructions safe for variable-length messages.
+
+The paper's key conceptual move is to reinterpret EOF handling as a base-conversion problem. Adding an EOF symbol enlarges the alphabet from \(B\) to \(B+1\), but it should not force the representation to pay one full bit per block. The rest of the paper develops local, reversible encodings that perform this conversion with almost no waste. SOLE encoding gives the first concrete version of this idea, information carriers abstract it, and the final online prefix-free code applies it to binary streams with overhead
+\[
+    \log_2 n + O(\log\log n).
+\]
+
 \subsection{Motivational Summary}
 
 The first problem of the paper can now be summarized as follows. A global representation can achieve
