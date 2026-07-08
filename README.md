@@ -17,10 +17,12 @@ Advanced-Algorithms-Paper-Review/
 │   └── Changing_base_without_losing_space.pdf
 ├── notes/
 │   ├── day01_paper_overview.md
-│   └── day02_succinct_data_structures.md
+│   ├── day02_succinct_data_structures.md
+│   └── day03_prefix_free_encoding.md
 ├── ai_logs/
 │   ├── day01_ai_log.md
-│   └── day02_ai_log.md
+│   ├── day02_ai_log.md
+│   └── day03_ai_log.md
 └── review/
     ├── main.tex
     └── sections/
