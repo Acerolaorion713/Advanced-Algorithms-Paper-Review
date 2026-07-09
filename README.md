@@ -18,11 +18,13 @@ Advanced-Algorithms-Paper-Review/
 ├── notes/
 │   ├── day01_paper_overview.md
 │   ├── day02_succinct_data_structures.md
-│   └── day03_prefix_free_encoding.md
+│   ├── day03_prefix_free_encoding.md
+│   └── day04_sole_encoding.md
 ├── ai_logs/
 │   ├── day01_ai_log.md
 │   ├── day02_ai_log.md
 │   └── day03_ai_log.md
+│   └── day04_ai_log.md
 └── review/
     ├── main.tex
     └── sections/
