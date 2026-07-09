@@ -230,9 +230,47 @@ Under the assumption \(n \leq 2^b\), this is only
 \]
 The remaining challenge is to realize this conversion efficiently and locally. Section 2 begins with the SOLE encoding as a simple construction for this block setting, and Section 5 later develops the full online prefix-free code for binary streams.
 
+\subsection{SOLE Encoding as the First Local Conversion}
+
+SOLE encoding is the first concrete construction that realizes the local base-conversion viewpoint. It is not yet the final online prefix-free code for arbitrary binary streams, but it explains the main technical idea in the simplest block setting.
+
+Let
+\[
+    B = 2^b.
+\]
+Before adding an end-of-file symbol, each block is an element of \([B]\). After adding \(\mathsf{eof}\), the alphabet size becomes \(B+1\). SOLE asks how to convert a stream over this enlarged alphabet back into ordinary \(B\)-ary blocks without paying one full extra bit per block.
+
+The construction works in two passes. In the first pass, the algorithm processes pairs of enlarged-alphabet symbols. A pair from \([B+1]^2\) is viewed as one integer and decomposed into a slightly short range and a slightly long range:
+\[
+    [B+1]^2
+    \longrightarrow
+    [B-4i]\times [B+4i+4].
+\]
+This step is valid because the target product range is large enough:
+\[
+    (B+1)^2
+    \leq
+    (B-4i)(B+4i+4),
+\]
+under the parameter assumptions of the construction. Operationally, the decomposition is just a quotient-and-remainder calculation, so it is reversible.
+
+The second pass regroups adjacent long and short ranges. A typical regrouped pair has range
+\[
+    [B+4i]\times [B-4i].
+\]
+Since
+\[
+    (B+4i)(B-4i) < B^2,
+\]
+this pair can be represented as two ordinary \(B\)-ary blocks. Thus the algorithm first creates an alternating pattern of short and long ranges, and then regroups them so that each pair fits back into the standard block alphabet.
+
+The important point is locality. SOLE does not behave like global base conversion, where the entire input is treated as one large integer. A constant number of input blocks determines a constant number of output blocks, and a constant number of output blocks is enough to recover a constant number of input blocks. This is why SOLE is not merely a compression trick; it is the first demonstration that base conversion can preserve local recoverability.
+
+This construction also prepares the abstraction used later. In SOLE, information that does not fit cleanly into a \(B\)-sized block is temporarily redistributed across neighboring blocks. Section 3 abstracts this phenomenon as an information carrier: a current spill is stored using nearby information, while a new spill is passed forward.
+
 \subsection{Theorem 2 and Its Significance}
 
-The paper's second main theorem states that there exists a universal code mapping \(n\) input bits to
+SOLE explains the local conversion idea in a simplified block setting. The full result for online binary streams is stated in the paper's second main theorem: there exists a universal code mapping \(n\) input bits to
 \[
     n + \log_2 n + O(\log\log n)
 \]
@@ -331,17 +369,15 @@ then the cascade structure allows one to continue from state \(y\) and compute a
 
 The online prefix-free encoding problem is therefore motivated from two directions. From the data representation perspective, it asks how to encode an unknown-length stream without paying a linear number of marker bits. From the cryptographic perspective, it provides a clean way to make cascade-based constructions safe for variable-length messages.
 
-The paper's key conceptual move is to reinterpret EOF handling as a base-conversion problem. Adding an EOF symbol enlarges the alphabet from \(B\) to \(B+1\), but it should not force the representation to pay one full bit per block. The rest of the paper develops local, reversible encodings that perform this conversion with almost no waste. SOLE encoding gives the first concrete version of this idea, information carriers abstract it, and the final online prefix-free code applies it to binary streams with overhead
+The paper's key conceptual move is to reinterpret EOF handling as a base-conversion problem. Adding an EOF symbol enlarges the alphabet from \(B\) to \(B+1\), but it should not force the representation to pay one full bit per block. SOLE encoding gives the first local implementation of this idea in a block setting. The information-carrier lemma then abstracts the same mechanism, and Section 5 applies it to binary streams with overhead
 \[
     \log_2 n + O(\log\log n).
 \]
 
 \subsection{Motivational Summary}
 
-The first problem of the paper can now be summarized as follows. A global representation can achieve
-\[
-    \left\lceil n\log_2\Sigma \right\rceil
-\]
-bits but loses locality. A local fixed-width representation supports efficient operations but wastes \(\Omega(n)\) bits when \(\Sigma\) is not a power of two. Arithmetic coding achieves excellent compression but remains globally dependent and does not support worst-case local access.
+The two main problems of the paper have the same underlying form. In the vector representation problem, the alphabet size \(\Sigma\) need not be a power of two. In the online prefix-free encoding problem, adding an end-of-file symbol enlarges the block alphabet from \(B\) to \(B+1\). In both cases, the data naturally lives in ranges whose sizes do not match binary memory exactly.
 
-The contribution of the paper is to show that this apparent trade-off is avoidable. The authors construct a local base-conversion technique that keeps the representation at the information-theoretic optimum while preserving constant-time access and updates. This technique is first illustrated by SOLE encoding, then abstracted into information carriers, and finally applied to the optimal-space vector representation.
+There are two naive ways to handle this mismatch. One can encode everything globally as a large integer, which preserves optimal space but loses locality. Or one can round each local range up to the next power of two, which preserves locality but creates repeated rounding loss and therefore linear redundancy.
+
+The contribution of the paper is to show that this apparent trade-off is avoidable. The authors develop local, reversible base-conversion techniques that move information between nearby blocks instead of encoding the whole object globally or rounding every symbol independently. SOLE encoding gives the first concrete example of this idea. Information carriers abstract it. The abstraction is then used to obtain both main results: optimal-space vector representation with constant-time reads and writes, and online prefix-free encoding with near-optimal overhead.
