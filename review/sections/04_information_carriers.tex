@@ -1,0 +1,192 @@
+\section{Information Carriers}
+\label{sec:information-carriers}
+
+\subsection{The Spill Problem}
+
+Suppose an intermediate value satisfies \(y\in[Y]\), where
+\([Y]=\{0,1,\ldots,Y-1\}\). If \(Y\) is not a power of two, storing \(y\)
+independently requires \(\lceil\log_2Y\rceil\) bits, although it contains only
+\(\log_2Y\) bits of information. Repeating this upward rounding creates
+linear redundancy.
+
+The paper calls such a value a \emph{spill}. A spill is not lost information
+and does not indicate a failed encoding; it is a reversible intermediate
+state whose range has not yet been embedded into a standard binary memory
+region.
+
+\subsection{The Information Carrier Abstraction}
+
+Let
+\[
+    x\in[X],
+    \qquad
+    y\in[Y].
+\]
+Here \(x\) is an information carrier and \(y\) is the old spill. The goal is
+an injective local transformation
+\[
+    (x,y)\longmapsto(m,s),
+\]
+where
+\[
+    m\in[2^M],
+    \qquad
+    s\in[S].
+\]
+The value \(m\) is an \(M\)-bit memory content, while \(s\) is the new spill.
+
+The asymmetry in the decoding requirement is essential: \(y\) must be
+recoverable from \(m\) alone, whereas \(x\) may be recovered from \(m\) and
+\(s\). Thus the old spill is truly committed to the current memory word. If
+recovering it also required the new spill, queries could follow an unbounded
+chain of successor spills and locality would be lost.
+
+\subsection{The Information Carrier Lemma}
+
+\begin{lemma}[Information carrier]
+Let \(x\in[X]\) and \(y\in[Y]\), with the parameters and values fitting in a
+constant number of Word RAM words. There are integers \(M\) and \(S\), and an
+injective mapping
+\[
+    [X]\times[Y]\longrightarrow[2^M]\times[S],
+\]
+such that \(y\) is recoverable from \(m\) alone, \(x\) is recoverable from
+\((m,s)\), and
+\[
+    S=O(\sqrt X),
+\]
+\[
+    2^M=O(Y\sqrt X),
+\]
+and
+\[
+    M+\log_2S-\log_2X-\log_2Y
+    =O\left(\frac{1}{\sqrt X}\right).
+\]
+The mapping and its inverse take \(O(1)\) time.
+\end{lemma}
+
+\subsection{Construction}
+
+Choose \(M\) so that \(2^M=\Theta(Y\sqrt X)\), with constants chosen to make
+the following integer positive, and define
+\[
+    C=
+    \left\lfloor
+    \frac{2^M}{Y}
+    \right\rfloor.
+\]
+Then \(C=\Theta(\sqrt X)\). Split the carrier into a quotient and remainder:
+\[
+    c=x\bmod C,
+\]
+\[
+    s=\left\lfloor\frac{x}{C}\right\rfloor,
+\]
+and pack the old spill together with the remainder by setting
+\[
+    m=yC+c.
+\]
+The new spill has range size
+\[
+    S=
+    \left\lceil
+    \frac{X}{C}
+    \right\rceil.
+\]
+Because \(c<C\) and \(y<Y\),
+\[
+    m<YC\leq2^M,
+\]
+so \(m\) is a valid \(M\)-bit memory content.
+
+\subsection{Decoding and Correctness}
+
+The old spill and the carrier remainder are obtained from \(m\) by
+\[
+    y=
+    \left\lfloor
+    \frac{m}{C}
+    \right\rfloor,
+\]
+\[
+    c=m\bmod C.
+\]
+In particular, \(m\) independently recovers \(y\). Given the new spill as
+well, the carrier is reconstructed as
+\[
+    x=sC+c.
+\]
+These equations uniquely recover both inputs, proving that the mapping is
+injective and that no information is discarded.
+
+\subsection{Redundancy Analysis}
+
+The redundancy has two independent rounding sources. First, the floor in
+the definition of \(C\) leaves some of the \(2^M\) memory states unused when
+\([Y]\times[C]\) is packed into memory. Its contribution is
+\[
+    R_1
+    =M-\log_2(YC)
+    =O\left(\frac{1}{C}\right).
+\]
+Indeed, \(2^M<Y(C+1)\), so the ratio between the available and used state
+counts is less than \(1+1/C\), whose logarithm is \(O(1/C)\).
+
+Second, the ceiling in
+\(S=\lceil X/C\rceil\) may add an incomplete final quotient class when
+\([X]\) is embedded into \([C]\times[S]\). This contribution is
+\[
+    R_2
+    =\log_2 C
+    +\log_2 S
+    -\log_2 X
+    =O\left(\frac{C}{X}\right).
+\]
+Here \(CS<X+C\), so the represented state count exceeds \(X\) by a factor
+smaller than \(1+C/X\).
+
+The total redundancy is therefore
+\[
+    R_1+R_2
+    =O\left(
+    \frac{1}{C}
+    +
+    \frac{C}{X}
+    \right).
+\]
+Balancing the loss from floor rounding against the loss from ceiling rounding
+gives
+\[
+    C=\Theta(\sqrt X),
+\]
+and hence
+\[
+    R_1+R_2
+    =O\left(\frac{1}{\sqrt X}\right).
+\]
+The same choice yields \(S=O(\sqrt X)\) and
+\(2^M=O(Y\sqrt X)\), completing the claimed bounds.
+
+\subsection{Constant-Time Implementation}
+
+Encoding and decoding use only a constant number of additions,
+multiplications, divisions, and modulo operations. The range parameters are
+fixed for an instance and can be precomputed. Under the paper's Word RAM
+assumptions, these word-level operations take \(O(1)\) time. Division by a
+fixed constant can also be replaced by multiplication with a precomputed
+reciprocal and a constant amount of correction when appropriate.
+
+\subsection{Why the Lemma Is Powerful}
+
+The lemma is not an ordinary compression statement: it specifies which part
+of the input becomes independently accessible. The old spill is committed
+locally to \(m\), so decoding does not create an infinite dependence on later
+carriers. Only the unresolved part of the current carrier continues as the
+new spill. Moreover, increasing the carrier universe \(X\) reduces the
+per-step redundancy as \(O(1/\sqrt X)\).
+
+This mechanism is reused in the paper's vector representation and in its
+online prefix-free code. The next application groups vector information into
+large enough carriers that spills can be absorbed with negligible loss while
+reads and updates remain local.
