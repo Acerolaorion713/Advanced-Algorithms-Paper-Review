@@ -1,0 +1,252 @@
+\section{Optimal-Space Vector Representation}
+\label{sec:vector-representation}
+
+\subsection{The Representation Problem}
+
+Consider a vector
+\[
+    A[1\ldots n],
+    \qquad
+    A[i]\in\Sigma,
+\]
+where the alphabet has size \(\Sigma\). The vector contains
+\(n\log_2\Sigma\) bits of information, so an injective binary
+representation needs at least
+\[
+    \left\lceil n\log_2\Sigma\right\rceil
+\]
+bits. Treating the entire vector as one integer in \([\Sigma^n]\) attains
+this bound, but reading or changing one coordinate then requires a global
+base conversion. At the other extreme, storing every coordinate in
+\(\lceil\log_2\Sigma\rceil\) bits gives local access but incurs linear
+redundancy whenever \(\Sigma\) is not a power of two.
+
+The objective is to attain the exact information-theoretic bound while
+supporting both reads and writes in constant time. The information carrier
+lemma from Section~\ref{sec:information-carriers} supplies the required local
+primitive: it commits an old spill to binary memory with low redundancy while
+leaving a bounded new spill.
+
+\subsection{Grouping Symbols into Carriers}
+
+Partition consecutive coordinates into groups and interpret each group as a
+mixed-radix value
+\[
+    x_i\in[X].
+\]
+The paper chooses
+\[
+    X=\Theta(n^2).
+\]
+Thus a carrier contains \(\Theta(\log_{\Sigma}n)\) original symbols, and the
+number of carriers is
+\[
+    N=O\left(\frac{n}{\log_{\Sigma}n}\right).
+\]
+Boundary groups are assigned their deterministically known ranges; this does
+not change the asymptotic calculation.
+
+This grouping is what amortizes the rounding loss. One application of the
+information carrier lemma has redundancy
+\[
+    O\left(\frac{1}{\sqrt X}\right).
+\]
+For \(X=\Theta(n^2)\), this is \(O(1/n)\) per carrier, and hence
+\[
+    N\cdot O\left(\frac{1}{n}\right)=o(1).
+\]
+Rather than rounding each small alphabet symbol separately, the construction
+performs one rounding operation on a carrier containing logarithmically many
+symbols, making the sum of all rounding losses vanish asymptotically.
+
+\subsection{A Sequential First Attempt}
+
+Let the carriers be \(x_1,x_2,\ldots,x_N\). Starting with a null spill
+\(y_0\), represented by a singleton range, step \(i\) applies the information
+carrier mapping
+\[
+    (x_i,y_{i-1})\longmapsto(m_i,y_i).
+\]
+Here \(m_i\) is written to an \(M_i\)-bit memory field, and \(y_i\in[Y_i]\)
+is passed to the next step. The lemma ensures \(Y_i=O(\sqrt X)\), even though
+its exact value may depend irregularly on \(Y_{i-1}\). After the last step,
+the final spill \(y_N\) is stored separately.
+
+\subsection{Redundancy of the Sequential Construction}
+
+The difference between the stored length and the information in the carriers
+is
+\[
+    \left\lceil\log_2Y_N\right\rceil
+    +\sum_{i=1}^{N}M_i
+    -N\log_2X.
+\]
+Using the chain rule for redundancy, this is at most
+\[
+    1+
+    \sum_{i=1}^{N}
+    \left(
+        M_i+\log_2Y_i-\log_2Y_{i-1}-\log_2X
+    \right).
+\]
+Each parenthesized term is precisely the redundancy of one information
+carrier transformation. The positive \(\log_2Y_i\) term at one step cancels
+the negative term at the next, while the leading one accounts for rounding
+up the space used by the final spill. Consequently the total redundancy is
+\[
+    1+N\cdot O\left(\frac{1}{\sqrt X}\right)=1+o(1).
+\]
+Crucially, intermediate spills are passed forward rather than independently
+stored in rounded-up binary fields. They therefore do not contribute one
+rounding bit per step.
+
+\subsection{Constant-Time Reads and Writes}
+
+Suppose a requested coordinate lies in \(x_j\). If \(j<N\), the asymmetric
+decoding guarantee of the lemma recovers the old spill \(y_j\) from
+\(m_{j+1}\) alone. The pair \((m_j,y_j)\) then recovers \(x_j\), from which
+the coordinate is extracted. For \(j=N\), the separately stored final spill
+\(y_N\) replaces the nonexistent \(m_{N+1}\). Thus decoding never begins at
+\(y_0\) and touches only a constant number of memory fields.
+
+To change \(x_j\), first re-encode step \(j\). Its new output spill \(y_j\)
+may differ, so step \(j+1\) is also re-encoded when \(j<N\). In the carrier
+mapping of Section~\ref{sec:information-carriers}, the new spill is the
+quotient part of the carrier and is independent of the old spill. Since
+\(x_{j+1}\) has not changed, this second encoding can retain the same
+\(y_{j+1}\); only its memory content changes. Propagation therefore stops
+after one neighboring step. When \(j=N\), only \(m_N\) and the separately
+stored \(y_N\) are changed. Both reads and writes take \(O(1)\) time.
+
+\subsection{Why the Sequential Construction Is Insufficient}
+
+The sequential construction is correct, space-efficient, and locally
+accessible. Its defect is instead the amount of nonuniform precomputation.
+The spill universes \(Y_i\) may all differ, so different steps may require
+different values of \(M_i\), spill-size parameters, information carrier
+constants, memory offsets, and fixed division or multiplication constants.
+It may therefore require
+\[
+    N=O\left(\frac{n}{\log n}\right)
+\]
+sets of precomputed parameters, rather than the \(O(\log n)\) word constants
+required by the theorem.
+
+\subsection{The Implicit Binary-Tree Representation}
+
+The final construction places the carriers in an implicit binary tree using
+heap numbering:
+\[
+    \operatorname{left}(i)=2i,
+    \qquad
+    \operatorname{right}(i)=2i+1,
+    \qquad
+    \operatorname{parent}(i)=\lfloor i/2\rfloor.
+\]
+No pointers are stored. A node combines the spills received from its two
+children into a mixed-radix value \(y_i\), and uses its own carrier in the
+mapping
+\[
+    (x_i,y_i)\longmapsto(m_i,s_i).
+\]
+The memory content \(m_i\) is written in the node's assigned memory area, and
+the new spill \(s_i\) is passed to its parent. A missing child contributes the
+unique value in a singleton, deterministically known range; leaves therefore
+have a fixed null input range. This handles incomplete boundary subtrees
+without pointers or an auxiliary data structure. The root spill \(s_1\) is
+stored separately.
+
+\subsection{Queries and Updates in the Tree}
+
+For a nonroot node \(v\), the parent's memory content independently reveals
+the combined old spill at the parent. Its mixed-radix components include the
+spill \(s_v\) sent by \(v\). Combining \(s_v\) with \(m_v\) recovers \(x_v\),
+and the desired coordinate is then extracted. For the root, the separately
+stored \(s_1\) and \(m_1\) recover \(x_1\). Although spills move upward while
+the representation is encoded, a query never follows a root-to-node path and
+does not recurse; it examines only the node and its parent.
+
+An update re-encodes the target node. Its outgoing spill may change, so the
+parent is re-encoded as well. The parent's carrier remains fixed, and the
+information carrier mapping consequently retains the parent's outgoing
+spill while absorbing the changed child spill into new memory content.
+Propagation stops there. Updating the root changes only its memory content
+and separately stored spill. Hence both operations take \(O(1)\) time.
+
+\subsection{Reducing the Number of Precomputed Constants}
+
+Parameter sharing is the reason for using the tree. At a fixed level, for an
+appropriate height \(k\), node subtrees occur in only three classes:
+\begin{enumerate}[label=(\arabic*)]
+    \item a prefix of nodes has complete binary subtrees of height \(k\);
+    \item at most one node has an incomplete subtree;
+    \item the remaining nodes have complete binary subtrees of height
+          \(k-1\).
+\end{enumerate}
+Nodes in the same class and level have the same subtree size. By induction,
+their two child spill ranges are identical, so they share the information
+carrier parameters, memory field sizes, and the rule for locating those
+fields. It suffices to store, for each class, its size, the first memory
+location, both child spill sizes, and the constants used by the lemma.
+
+There are only constantly many classes per level, and the tree height is
+\[
+    O(\log N)=O(\log n).
+\]
+The total number of precomputed word constants is therefore \(O(\log n)\).
+For heap index \(i\), its level is
+\[
+    \lfloor\log_2 i\rfloor,
+\]
+which is computable by a constant number of Word RAM operations. The level
+then identifies the node's class and the shared parameters and memory
+locations in constant time.
+
+\subsection{The Final-Bit Issue}
+
+The direct construction yields
+\[
+    \left\lceil n\log_2\Sigma+o(1)\right\rceil
+\]
+bits, which can in principle equal
+\(\lceil n\log_2\Sigma\rceil+1\). The paper removes this possible last bit by
+increasing the block, and hence carrier, universe. Arithmetic then uses
+\(O(c\log n)\)-bit integers for a fixed constant \(c\), still a constant
+number of Word RAM words, and the accumulated redundancy becomes
+\(O(n^{-c})\).
+
+For fixed \(\Sigma\), the paper invokes a lower bound from the theory of
+linear forms in logarithms: unless \(n\log_2\Sigma\) is already integral, its
+distance from an integer is at least inverse polynomial in \(n\). Choosing
+\(c\) sufficiently large makes the remaining redundancy smaller than this
+separation, ensuring
+\[
+    n\log_2\Sigma+O(n^{-c})
+    \leq
+    \left\lceil n\log_2\Sigma\right\rceil.
+\]
+Only this separation consequence is needed; the underlying number-theoretic
+theorem is not reproved here.
+
+\subsection{The Vector Representation Theorem}
+
+\begin{theorem}
+On the Word RAM, a vector \(A[1\ldots n]\) over an alphabet of size
+\(\Sigma\) can be represented using
+\[
+    \left\lceil n\log_2\Sigma\right\rceil
+\]
+bits while supporting reads and writes in \(O(1)\) time. The representation
+requires \(O(\log n)\) precomputed word constants.
+\end{theorem}
+
+\begin{proof}
+Grouping symbols into carriers of universe \(X=\Theta(n^2)\) reduces the sum
+of local rounding redundancies to \(o(1)\). The tree preserves the lemma's
+local recovery asymmetry, so a carrier is read from its node and parent and
+an update is absorbed after re-encoding at most those two nodes. Nodes of the
+same level and subtree class share parameters, leaving only \(O(\log n)\)
+precomputed word constants. Finally, enlarging the carriers reduces the
+residual error below the inverse-polynomial separation from the next integer,
+which gives the exact \(\lceil n\log_2\Sigma\rceil\)-bit bound.
+\end{proof}
