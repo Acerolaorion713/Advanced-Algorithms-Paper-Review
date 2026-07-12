@@ -1,0 +1,198 @@
+\section{Online Prefix-Free Encoding}
+\label{sec:online-prefix-free-encoding}
+
+\subsection{The Online Universal-Coding Problem}
+
+The paper's second main result concerns a binary stream whose final length
+is not known when encoding begins. A valid encoding must be prefix-free, so
+the decoder can identify the message boundary without receiving the length
+separately. An offline Elias code can place an already known length before
+the payload, but an online encoder cannot emit such a header before learning
+the end of the stream. Adding an integral end marker to every fixed-size
+block is online, but incurs linear redundancy.
+
+The construction combines slowly growing blocks, an early termination
+symbol, and the local mapping of Section~\ref{sec:information-carriers}. It
+establishes a universal code of length
+\[
+    n+\log_2 n+O(\log\log n)
+\]
+for an \(n\)-bit input, using \(O(\log n)\) bits of working memory and
+constant time per word-level block operation. This develops the simplified
+fixed-block intuition of SOLE from Section~\ref{sec:sole} into a code for an
+unknown-length binary stream.
+
+\subsection{Slowly Growing Blocks}
+
+Block sizes are determined online from the amount of input already seen.
+When the observed prefix has the current scale denoted by \(n\) in the
+paper's local description, the next complete block has
+\[
+    2k_i=2\left\lceil\log_2 n\right\rceil
+\]
+bits. This use of \(n\) does not assume knowledge of the eventual stream
+length. The complete block consists of two \(k_i\)-bit components and is
+interpreted as
+\[
+    x_i\in[2^{k_i}]^2.
+\]
+Thus \(k_i\) is the component length, whereas the full block length is
+\(2k_i\).
+
+The universe of a complete block has size \(2^{2k_i}\). Since the
+information-carrier loss on a universe of size \(X\) is
+\(O(1/\sqrt X)\), this choice gives a local loss of
+\[
+    O\left(\frac{1}{\sqrt{2^{2k_i}}}\right)
+    =O(2^{-k_i}).
+\]
+As the stream grows, later rounding losses consequently become smaller.
+
+\subsection{Handling the Final Partial Block}
+
+Let \(N\) be the final number of blocks. The first \(N-1\) blocks are
+complete, whereas block \(N\) may contain between one and \(2k_N\) bits.
+The main construction encodes the complete prefix, after which it appends an
+Elias encoding for the last partial block. This special encoding supplies
+only the boundary information for a block of logarithmic size; it does not
+place the unknown total length before the entire stream. Its overhead is
+\[
+    O(\log k_N)=O(\log\log n).
+\]
+
+\subsection{Pass One: Embedding an Early EOF Symbol}
+
+Pass one enlarges the alphabet of each complete block from
+\([2^{k_i}]^2\) to
+\[
+    [2^{k_i}]
+    \times
+    \left([2^{k_i}]\cup\{\mathrm{eof}\}\right).
+\]
+If block \(N-2\) originally equals
+\[
+    (a,b)\in[2^{k_{N-2}}]^2,
+\]
+the encoder replaces it by \((a,\mathrm{eof})\). The displaced component
+\(b\) is not discarded: it is appended in plaintext as part of the special
+tail.
+
+The encoder maintains a three-block lag using an \(O(\log n)\)-bit buffer.
+When a block first arrives, the encoder cannot know whether it will
+eventually be block \(N-2\). It therefore delays the last constant number of
+blocks and chooses the termination position only after the input ends. No
+previously emitted output is rewritten.
+
+The position \(N-2\), rather than the last block, is forced by decoding
+locality. Recovering an input block requires information committed to the
+next output block. Moving termination sufficiently far forward ensures that
+the decoder learns it before exhausting the ordinary encoded stream.
+
+\subsection{Redundancy of Alphabet Enlargement}
+
+The original universe of block \(i\) has \(2^{2k_i}\) states, while the
+enlarged universe has \(2^{k_i}(2^{k_i}+1)\) states. Its information cost is
+\[
+\begin{aligned}
+    &\log_2\left(2^{k_i}(2^{k_i}+1)\right)-2k_i\\
+    &\qquad=\log_2(1+2^{-k_i})
+    =O(2^{-k_i}).
+\end{aligned}
+\]
+
+The sum is analyzed by block scale. For a fixed \(K\), the slowly growing
+partition contains
+\[
+    O\left(\frac{2^K}{K}\right)
+\]
+blocks satisfying \(k_i=K\). Since each contributes \(O(2^{-K})\), the
+entire scale contributes
+\[
+    O\left(\frac{2^K}{K}\right)O(2^{-K})
+    =O\left(\frac{1}{K}\right).
+\]
+Summing this harmonic bound over \(1\leq K\leq\log_2n\) gives
+\[
+    \sum_{K=1}^{\log_2 n}O\left(\frac{1}{K}\right)
+    =O(\log\log n).
+\]
+
+\subsection{Pass Two: Conversion through Information Carriers}
+
+Pass two converts the enlarged alphabets to binary. As in the sequential
+carrier chain preceding the tree construction of
+Section~\ref{sec:vector-representation}, it applies the information-carrier
+mapping in order:
+\[
+    (x_i,s_{i-1})\longmapsto(m_i,s_i).
+\]
+Here \(x_i\) is the current enlarged-alphabet block, \(s_{i-1}\) is the old
+spill, \(m_i\) is binary memory content that can be emitted, and \(s_i\) is
+the new spill passed to the next block. The asymmetric inverse guaranteed in
+Section~\ref{sec:information-carriers} commits the old spill to \(m_i\),
+which is precisely the locality needed by the decoder.
+
+The carrier domain at step \(i\) has size \(O(2^{2k_i})\), so the lemma adds
+\(O(2^{-k_i})\) redundancy. The same scale decomposition used above bounds
+the cumulative carrier redundancy by \(O(\log\log n)\). The proof of the
+lemma need not be repeated: its bounded spill and constant number of word
+arithmetic operations apply directly to these growing domains.
+
+\subsection{Why the Decoder Stops in Time}
+
+The termination symbol occurs in input block \(N-2\). After reading output
+block \(N-1\), the local inverse mapping has recovered the spill needed to
+decode input block \(N-2\), and hence reveals its second component
+\(\mathrm{eof}\). The decoder therefore sees termination before it would
+need to read beyond the ordinary encoded stream.
+
+Upon detecting \(\mathrm{eof}\), the decoder stops the sequential carrier
+procedure and switches to the special tail. It decodes the final partial
+block and reads the displaced component \(b\), restores \(b\) as the second
+half of block \(N-2\), and outputs the remaining original bits. Because the
+switch occurs immediately after output block \(N-1\), the special tail is
+not mistaken for additional ordinary carrier blocks.
+
+\subsection{Total Encoding Length}
+
+Replacing the second component of block \(N-2\) by termination and moving
+that component to the tail costs at most
+\(k_{N-2}\leq\log_2n\) bits. This is one termination mechanism, not two
+independent charges for the marker and the displaced data. Alphabet
+enlargement and the sequential carrier mappings each add
+\(O(\log\log n)\), and the final partial block adds another
+\(O(\log\log n)\). Consequently,
+\[
+\begin{aligned}
+    \text{encoding length}
+    &=n+\underbrace{\log_2n}_{\text{early termination}}
+      +\underbrace{O(\log\log n)}_{\text{alphabet enlargement}}\\
+    &\quad+\underbrace{O(\log\log n)}_{\text{carrier mappings}}
+      +\underbrace{O(\log\log n)}_{\text{partial block}}\\
+    &=n+\log_2n+O(\log\log n).
+\end{aligned}
+\]
+
+\subsection{Memory and Running Time}
+
+The encoder and decoder retain a constant number of \(O(\log n)\)-bit
+blocks, one bounded spill, and a constant number of counters and block
+parameters. Their working memory is therefore \(O(\log n)\) bits.
+
+Each pass performs a constant number of additions, multiplications,
+divisions, and quotient--remainder operations per block. Under the paper's
+Word RAM assumptions this is \(O(1)\) time per block, or per word-level
+operation. The special ending processes only a constant number of blocks;
+the total processing time over a stream remains linear in the number of
+processed blocks, rather than constant for the entire input.
+
+\subsection{Significance of the Construction}
+
+SOLE demonstrates with fixed blocks how short and long ranges can carry a
+non-binary spill. The general carrier lemma removes that simplifying
+structure and supports the varying alphabets required here. Slowly growing
+blocks make local rounding losses summable, while early termination aligns
+the code boundary with the lemma's local inverse. The same primitive that
+gave exact-space vector representation thus also yields the paper's second
+main result: a low-memory online code whose redundancy is within
+\(O(\log\log n)\) of the Elias-scale bound.
