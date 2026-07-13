@@ -1,0 +1,164 @@
+\section{Related Work}
+\label{sec:related-work}
+
+The paper lies at the intersection of two subjects: succinct representation
+with local access and online self-delimiting coding.  Its common technical
+primitive is a local, reversible conversion between a finite nonbinary
+alphabet and binary memory.  The two applications should nevertheless be
+compared with different literatures: redundancy and query lower bounds for
+the vector result, and universal coding and cryptographic domain extension
+for the online result \cite{dodis2010changing}.
+
+\subsection{Succinct Data Structures and Redundancy}
+
+Since Jacobson's foundational work, succinct data structures have sought to
+store an object near its information-theoretic minimum while retaining useful
+operations \cite{jacobson1989space}.  A vector in \(\Sigma^n\) has
+\(\Sigma^n\) possible values and therefore needs at least
+\(\lceil n\log_2\Sigma\rceil\) bits.  Encoding coordinates independently
+uses \(n\lceil\log_2\Sigma\rceil\) bits and wastes
+\[
+    n\bigl(\lceil\log_2\Sigma\rceil-\log_2\Sigma\bigr)
+\]
+bits.  Treating the vector as one integer in \([\Sigma^n]\) eliminates that
+rounding loss but makes a coordinate operation a global base conversion.
+
+Earlier succinct-index techniques reduced the redundancy while retaining
+fast access.  Golynski et al. obtained constant access with
+\(O(n/\log^2 n)\) redundancy in the relevant regime, and
+P\u{a}tra\c{s}cu's recursive ``Succincter'' framework gave a family of
+time--redundancy tradeoffs \cite{golynski2007size,patrascu2008succincter}.
+The result reviewed here is sharper for the abstract fixed-alphabet vector:
+on its Word RAM, it occupies exactly
+\(\lceil n\log_2\Sigma\rceil\) bits and supports both reads and writes in
+constant time.  This is a theorem about this vector problem, not a claim that
+all succinct structures can eliminate redundancy.
+
+\subsection{Rank, Select, and Lower Bounds}
+
+Rank and select are central navigation primitives in many succinct
+structures.  Their space--time limitations motivated general lower-bound
+programs in the cell-probe and bit-probe models
+\cite{gal2003cell,golynski2009cell,patrascu2010cell,viola2009bit}.  These
+bounds concern specified query problems, encodings, and computational models;
+they cannot be transferred to every finite-alphabet representation merely
+because the latter is succinct.
+
+The vector theorem does not contradict the rank/select lower bounds.  It
+shows instead that plain coordinate access admits a representation that does
+not implement rank/select and therefore avoids the machinery to which those
+bounds apply.  Conversely, it does not supply rank, select, or general set
+membership.  The paper itself identifies dictionaries as a harder target and
+presents local base conversion as evidence that alternative technical routes
+can sometimes bypass a familiar barrier, not as a refutation of the barrier
+for the problems where it was proved.
+
+\subsection{Arithmetic Coding and Locality}
+
+Arithmetic coding treats a much broader source model.  For independently
+drawn symbols from a distribution \(D\), it approaches the entropy
+\(nH(D)\), and standard bounded-precision implementations encode and decode
+streams efficiently \cite{witten1987arithmetic,moffat1998arithmetic}.  In the
+uniform case this objective resembles conversion from base \(\Sigma\) to
+binary, but the operational guarantees differ.
+
+Renormalization may leave an interval straddling one half.  Standard
+implementations count such outstanding bits until a later symbol resolves
+their values, at which point a burst of output is emitted.  Thus a particular
+encoded position may depend on many surrounding symbols.  This is compatible
+with good sequential compression, but it does not provide the worst-case
+local random access, update, and per-block output behavior required here.
+The comparison is consequently not that arithmetic coding is inferior: it
+handles nonuniform distributions that this paper does not, whereas the paper
+specializes to uniform finite alphabets in exchange for strong locality.
+
+\subsection{Universal and Prefix-Free Coding}
+
+Elias codes are a classical offline method for self-delimiting integer
+representations \cite{elias1975universal}.  Once the payload length
+is known, it can be placed before the payload using delta, omega, or related
+iterated descriptions.  Elias-type offline codes achieve a sharper
+iterated-log expression than merely
+\(n+\log_2n+O(\log\log n)\).
+
+The online problem is different because the encoder must begin before the
+final length is known.  Buffering a fixed block and adding an integral EOF
+flag per block is online but has linear redundancy.  Maurer and Sj\"odin's
+work on single-key message authentication supplied the cryptographic context
+and conjectured that low-memory online prefix-free encoding required such a
+linear cost \cite{maurer2005single}.  The reviewed paper refutes that
+conjecture by obtaining
+\[
+    n+\log_2n+O(\log\log n)
+\]
+bits, within \(O(\log\log n)\) of the Elias-scale optimum, together with
+\(O(\log n)\) working memory and constant time per word-level operation.  Its
+novelty is the simultaneous online, locality, memory, and redundancy
+guarantee, not a replacement for every offline Elias code.
+
+\subsection{Cryptographic Domain Extension}
+
+Many domain-extension constructions iterate a fixed-input-length primitive
+over message blocks.  CBC-MAC, cascade PRFs (including the GGM viewpoint),
+and Merkle--Damg\aa rd-style hashing are prominent examples
+\cite{bellare1994security,bellare1996cascade,goldreich1986random,coron2005merkle}.
+If one valid encoded message is a prefix of another, the shorter computation
+is an ancestor state of the longer computation.  This relation enables the
+corresponding extension attacks: an adversary may continue processing from a
+state associated with the shorter message.
+
+Prefix-free input encoding is a generic way to exclude that
+ancestor--descendant relation.  Other constructions use additional keys,
+outer applications, strengthened finalization, or dedicated domain-extension
+transforms; NMAC/HMAC and multi-property-preserving transforms illustrate
+this design space \cite{bellare1996keying,bellare2006multiproperty}.  The
+paper did not invent CBC-MAC, HMAC, or Merkle--Damg\aa rd.  Appendix~A uses
+them as motivation: lowering the redundancy and state cost of online
+prefix-free encoding makes ``PFE then cascade'' a cleaner generic option in
+settings whose security proof accepts prefix-free domains.  This observation
+does not remove the need to analyze the concrete primitive, padding rule, and
+security model.
+
+\subsection{Subsequent Developments after 2010}
+
+Later work continued to reduce redundancy in succinct structures, but the
+relationship must be stated carefully.  Yu's 2019 rank structure matches the
+P\u{a}tra\c{s}cu--Viola cell-probe tradeoff over a broad parameter range using
+approximate nonnegative tensor decomposition \cite{yu2019rank}.  It concerns
+rank rather than plain coordinate access and is evidence of progress on the
+barrier discussed in 2010; it is not presented as a direct extension of the
+local base-conversion construction.
+
+Yu's static Las Vegas dictionary develops a toolkit of fractional-length
+strings from spillover representations, with local concatenation and fusion,
+and uses it in a near-optimal dictionary and zero-order sequence compression
+\cite{yu2022dictionary}.  This is substantively related to the principle of
+accumulating fractional information before rounding.  Its stated lineage is
+the spillover representation in ``Succincter,'' however, so similarity to the
+information-carrier viewpoint does not by itself establish direct descent
+from the 2010 paper.  These examples show that spillover and fractional-bit
+methods remained useful, while also showing why citation alone is
+insufficient evidence of a technical inheritance claim.
+
+The literature checked for this review did not establish an equally clear
+post-2010 line that directly improves the paper's online prefix-free theorem
+under the same online-memory and worst-case-locality requirements.  We
+therefore avoid claiming either that the theorem became a standard practical
+method or that later universal and locally decodable compression results are
+direct continuations without a model-by-model proof.
+
+\subsection{Positioning the Paper}
+
+The paper is best understood as a local, reversible, low-redundancy base
+conversion result for uniform finite alphabets.  It is not a general-purpose
+compressor, a rank/select data structure, or a new cryptographic primitive.
+Its conceptual strength is that one information-carrier mechanism yields two
+different consequences: exact-space mutable vectors and a low-memory online
+prefix-free code close to the offline universal-coding scale.
+
+The contribution is strongest as a theoretical separation between integral
+rounding and inherent information cost.  Practical applicability is more
+conditional: it depends on Word RAM arithmetic, precomputed constants,
+block parameters, and the surrounding security or storage system.  Extending
+the same locality guarantees to biased distributions, or transferring the
+method to richer query problems, remains outside the proved scope.
