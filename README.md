@@ -23,7 +23,8 @@ Advanced-Algorithms-Paper-Review/
 │   ├── day04_sole_encoding.md
 │   ├── day05_information_carriers.md
 │   ├── day06_vector_representation.md
-│   └── day07_online_prefix_free_encoding.md
+│   ├── day07_online_prefix_free_encoding.md
+│   └── day08_related_work.md
 ├── ai_logs/
 │   ├── day01_ai_log.md
 │   ├── day02_ai_log.md
@@ -31,7 +32,8 @@ Advanced-Algorithms-Paper-Review/
 │   ├── day04_ai_log.md
 │   ├── day05_ai_log.md
 │   ├── day06_ai_log.md
-│   └── day07_ai_log.md
+│   ├── day07_ai_log.md
+│   └── day08_ai_log.md
 └── review/
     ├── main.tex
     ├── references.bib
@@ -41,5 +43,6 @@ Advanced-Algorithms-Paper-Review/
         ├── 03_sole_encoding.tex
         ├── 04_information_carriers.tex
         ├── 05_vector_representation.tex
-        └── 06_online_prefix_free_encoding.tex
+        ├── 06_online_prefix_free_encoding.tex
+        └── 07_related_work.tex
 ```
