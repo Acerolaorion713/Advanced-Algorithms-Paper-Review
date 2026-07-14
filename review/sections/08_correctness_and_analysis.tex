@@ -1,0 +1,318 @@
+\section{Correctness and Complexity Analysis}
+\label{sec:correctness-analysis}
+
+\subsection{Proof Architecture}
+
+The preceding constructions form one proof chain rather than four independent
+encodings.  SOLE, in Section~\ref{sec:sole}, exhibits a reversible local change
+of finite radix.  Lemma~\ref{lem:information-carrier} isolates the invariant
+behind that example: an old spill is committed to an integer number of memory
+bits, while a bounded new spill carries only the unresolved part forward.  The
+vector result organizes this invariant in an implicit tree, and the online
+prefix-free result organizes it in a stream with delayed termination
+\cite{dodis2010changing}.  This section audits the proof obligations that are
+shared across those applications and records the computational assumptions on
+which their time bounds depend.
+
+\subsection{Correctness of the SOLE Transform}
+
+Let \(B=2^b\), let \([B]=\{0,\ldots,B-1\}\), and identify
+\(\mathsf{eof}\) with \(B\), so an enlarged-alphabet symbol belongs to
+\([B+1]\).  In Pass~1, the pair \((x,y)\in[B+1]^2\) is combined as
+\[
+    z=y(B+1)+x
+\]
+and divided by \(B-4i\):
+\[
+    a=z\bmod(B-4i),
+    \qquad
+    q=\left\lfloor\frac{z}{B-4i}\right\rfloor.
+\]
+The remainder automatically satisfies \(a\in[B-4i]\).  The range of the
+quotient follows from the full capacity calculation
+\[
+\begin{aligned}
+ &(B-4i)(B+4i+4)-(B+1)^2\\
+ &\qquad=2B-16i(i+1)-1.
+\end{aligned}
+\]
+Thus
+\[
+    (B+1)^2\leq(B-4i)(B+4i+4)
+\]
+is equivalent to
+\[
+    B\geq 2(2i+1)^2-\frac{3}{2}.
+\]
+Basic SOLE assumes \(B\geq2n^2\), and every processed pair satisfies
+\(2i+1\leq n\), so the required inequality holds.  Since
+\(z<(B+1)^2\), it follows that \(q\in[B+4i+4]\).
+
+The inverse is explicit.  From \((a,q)\), it reconstructs
+\[
+    z=q(B-4i)+a,
+\]
+followed by
+\[
+    x=z\bmod(B+1),
+    \qquad
+    y=\left\lfloor\frac{z}{B+1}\right\rfloor.
+\]
+Both uniqueness claims are instances of Euclidean division.  After Pass~1,
+Pass~2 regroups a long and a short value.  For \(i\geq1\), the pair belongs to
+\([B+4i]\times[B-4i]\), and
+\[
+    (B+4i)(B-4i)=B^2-16i^2<B^2.
+\]
+It therefore has a unique representation as two base-\(B\) digits.  The first
+\([B]\) value is not part of this shifted pairing, so the strict inequality is
+used only where \(i\geq1\).
+
+For the basic odd-length presentation, write \(n=2r+1\).  The appended
+\(\mathsf{eof}\) is at position \(2r+2\), and the algorithm appends
+\[
+    0\in[B-4r-4]
+\]
+after Pass~1 to complete the final long--short pair.  For even \(n\), the
+basic presentation pads to the odd case and can use one more boundary block;
+the tighter variant in the paper handles both parities with an early EOF
+mechanism.  In either case, termination needs more than the existence of a
+distinguished symbol.  SOLE's Property~3 states that input blocks \(2i+1\)
+and \(2i+2\) are decoded from output blocks \(2i,\ldots,2i+3\).  The window
+that reveals the final EOF lies inside the produced encoding, so the decoder
+stops without probing beyond the file.  The same property shows the exact
+locality guarantee: encoding and decoding use four-block neighborhoods, not a
+single block.
+
+\subsection{Correctness and Redundancy of the Information-Carrier Lemma}
+
+Section~\ref{sec:information-carriers} gives the construction; here we make
+its proof obligations explicit.  For \(x\in[X]\), \(y\in[Y]\), choose
+\(M\) so that
+\[
+    C=\left\lfloor\frac{2^M}{Y}\right\rfloor
+    =\Theta(\sqrt X),
+    \qquad
+    S=\left\lceil\frac{X}{C}\right\rceil,
+\]
+with \(C\geq1\).  Define
+\[
+    c=x\bmod C,
+    \qquad
+    s=\left\lfloor\frac{x}{C}\right\rfloor,
+    \qquad
+    m=yC+c.
+\]
+Because \(0\leq c<C\) and \(0\leq y<Y\),
+\[
+    0\leq m<YC\leq2^M,
+\]
+so \(m\) is a legal \(M\)-bit memory value.  Euclidean division gives
+\[
+    y=\left\lfloor\frac{m}{C}\right\rfloor,
+    \qquad
+    c=m\bmod C,
+    \qquad
+    x=sC+c.
+\]
+Consequently the map is injective.  More importantly, the old spill \(y\) is
+recovered from \(m\) alone; recovering it does not initiate a chain through
+later spills.  This asymmetric local recovery condition is what supports the
+constant-time accesses in both applications.
+
+The two rounding losses can be bounded without suppressing the floor and
+ceiling.  From the definition of \(C\),
+\[
+    YC\leq2^M<Y(C+1),
+\]
+and hence
+\[
+\begin{aligned}
+    R_1
+    &=M-\log_2(YC)\\
+    &=\log_2\frac{2^M}{YC}
+      <\log_2\left(1+\frac{1}{C}\right)
+      =O\left(\frac{1}{C}\right).
+\end{aligned}
+\]
+Similarly, \(S=\lceil X/C\rceil\) implies \(CS<X+C\), so
+\[
+\begin{aligned}
+    R_2
+    &=\log_2C+\log_2S-\log_2X\\
+    &=\log_2\frac{CS}{X}
+      <\log_2\left(1+\frac{C}{X}\right)
+      =O\left(\frac{C}{X}\right).
+\end{aligned}
+\]
+Balancing the two terms at \(C=\Theta(\sqrt X)\) yields
+\[
+    R_1+R_2=O\left(\frac{1}{\sqrt X}\right),
+    \qquad
+    S=O(\sqrt X),
+    \qquad
+    2^M=O(Y\sqrt X).
+\]
+The encoder and decoder use a constant number of word additions,
+multiplications, divisions, and remainder operations once \(M,C,S\) are
+precomputed.
+
+\subsection{Proof of the Optimal-Space Vector Result}
+
+In Section~\ref{sec:vector-representation}, \(\Sigma\) denotes the alphabet
+cardinality.  Consecutive coordinates are grouped into carriers from a
+universe
+\[
+    X=\Theta(n^2).
+\]
+For a fixed finite alphabet of size \(\Sigma\geq2\), each carrier contains
+\(\Theta(\log_{\Sigma}n)\) coordinates and the number of carriers is
+\[
+    N=O\left(\frac{n}{\log_{\Sigma}n}\right).
+\]
+Lemma~\ref{lem:information-carrier} contributes \(O(1/n)\) redundancy per
+carrier, so the total carrier redundancy is
+\[
+    N\,O\left(\frac{1}{n}\right)
+    =O\left(\frac{1}{\log_{\Sigma}n}\right)
+    =o(1).
+\]
+
+The sequential first attempt already has this space bound and local access.
+Its failure is nonuniform precomputation: irregular spill universes can
+require \(O(N)\) distinct parameter sets and memory offsets.  The implicit
+binary tree reduces that cost.  On any level its nodes form at most three
+classes: complete subtrees of height \(k\), at most one incomplete subtree,
+and complete subtrees of height \(k-1\).  Nodes in one class receive identical
+child-spill universe sizes and therefore share carrier parameters.  There are
+only constantly many classes per level and \(O(\log n)\) levels, giving the
+\(O(\log n)\) precomputed word constants in
+Theorem~\ref{thm:vector-representation}.
+
+The tree does not cause logarithmic query time.  To recover the carrier at a
+nonroot node \(v\), the algorithm uses the parent's memory to recover the
+spill sent by \(v\), then combines that spill with \(v\)'s own memory.  It
+touches the node and its parent, not a root-to-leaf path.  The root uses its
+separately stored spill.  A coordinate is then extracted from the recovered
+carrier by fixed-radix word arithmetic.
+
+An update is equally local.  Re-encoding \(v\) may change its outgoing spill,
+so its parent must also be re-encoded.  In the carrier construction, however,
+the new spill is the carrier quotient
+\[
+    s=\left\lfloor\frac{x}{C}\right\rfloor,
+\]
+which does not depend on the old-spill value.  The parent's own carrier and
+parameters are unchanged; therefore its outgoing spill is unchanged even
+though its memory content absorbs the modified child spill.  No update reaches
+the grandparent.  Roots, leaves, and the unique incomplete subtree use the
+same argument with separately stored or singleton missing-child spills.
+
+Finally, \(n\log_2\Sigma+o(1)\) is not by itself the claimed exact integer
+bound.  Storing the final root spill gives initially
+\[
+    \left\lceil n\log_2\Sigma+o(1)\right\rceil,
+\]
+which could be one bit larger than \(\lceil n\log_2\Sigma\rceil\).  The paper
+enlarges the carriers so that the residual redundancy is \(O(n^{-c})\) for
+any fixed \(c\), while arithmetic still occupies a constant number of
+\(O(\log n)\)-bit words.  For fixed \(\Sigma\) that is not a power of two, a
+linear-forms-in-logarithms bound gives an inverse-polynomial lower bound on
+the nonzero distance from \(n\log_2\Sigma\) to an integer.  Choosing \(c\)
+large enough keeps the residual below the next-integer gap, so the final
+ceiling absorbs it.  Power-of-two alphabets have an integral information
+bound and admit direct fixed-width packing.  The number-theoretic theorem is
+used only for this last rounding step, not for locality or the carrier lemma.
+
+\subsection{Proof of the Online Prefix-Free Result}
+
+To avoid overloading \(n\), let \(t\) be the number of bits observed when the
+next block size is chosen, let \(n\) be the final input length, and let \(N\)
+be the final number of blocks.  A complete block has two halves of length
+\[
+    k_i=\lceil\log_2t\rceil
+\]
+and hence universe \(X_i=2^{2k_i}=\Theta(t^2)\), up to scale constants.  The
+carrier loss is therefore \(O(2^{-k_i})\).  Enlarging one half-alphabet from
+\([2^{k_i}]\) to \([2^{k_i}]\cup\{\mathsf{eof}\}\) costs
+\[
+\begin{aligned}
+ &\log_2\bigl(2^{k_i}(2^{k_i}+1)\bigr)-2k_i\\
+ &\qquad=\log_2(1+2^{-k_i})=O(2^{-k_i}).
+\end{aligned}
+\]
+At scale \(k_i=K\), there are \(O(2^K/K)\) blocks because the scale contains
+\(O(2^K)\) input bits and each block has \(\Theta(K)\) bits.  Each of the two
+losses thus contributes \(O(1/K)\) at that scale.  Since the largest scale is
+\(O(\log n)\),
+\[
+    \sum_{K=1}^{\lceil\log_2n\rceil}O\left(\frac{1}{K}\right)
+    =O(\log\log n).
+\]
+
+Prefix-freeness depends on the timing of EOF discovery.  A three-block lag
+keeps a constant number of blocks in an \(O(\log n)\)-bit buffer.  If complete
+input block \(N-2\) was \((a,b)\), the encoder replaces it by
+\((a,\mathsf{eof})\) and saves the displaced half \(b\) in the special tail.
+The last incomplete block \(N\) is also encoded in that tail with an Elias
+code.  No already emitted output is rewritten.
+
+After reading ordinary output block \(N-1\), the sequential carrier inverse
+has the spill required to reconstruct input block \(N-2\).  It therefore sees
+\(\mathsf{eof}\) before requesting another nonexistent ordinary output block,
+stops the carrier decoder, and switches to the self-delimiting tail.  The tail
+restores \(b\) and the final partial block.  The length decomposition is
+\[
+\begin{aligned}
+    \text{length}
+    &=\underbrace{n}_{\text{payload}}
+      +\underbrace{\log_2n}_{\text{displaced half / early EOF}}\\
+    &\quad+\underbrace{O(\log\log n)}_{\text{alphabet enlargement}}
+      +\underbrace{O(\log\log n)}_{\text{carrier rounding}}\\
+    &\quad+\underbrace{O(\log\log n)}_{\text{incomplete-block tail}}\\
+    &=n+\log_2n+O(\log\log n).
+\end{aligned}
+\]
+The displaced half and the early EOF are one mechanism and are not charged as
+two separate \(\log n\) terms.  This is near-optimal, within
+\(O(\log\log n)\) of the Elias-scale bound; it is not an exact reproduction
+of the full Elias omega iterated-log expression.
+
+The streaming state consists of a current block, a bounded spill, block-size
+counters, the constant-lag buffer, and termination metadata.  These are a
+constant number of \(O(\log n)\)-bit objects, so the working space is
+\(O(\log n)\) bits.  The time guarantee is \(O(1)\) per word-level or block
+operation, not per individual bit.
+
+\subsection{Computational Model and Complexity Assumptions}
+
+All constant-time claims use the paper's Word RAM model.  Memory supports
+random access and is divided into \(w\)-bit words with
+\(w=\Omega(\log n)\), so indices and the ordinary carrier parameters fit in
+a word.  Addition, multiplication, and division are unit-cost operations;
+remainder is obtained with quotient--remainder arithmetic.  Each local
+transformation uses a constant number of words, and its universe-dependent
+constants are precomputed.  The vector data structure counts
+\(O(\log n)\) such constants explicitly.  The exact-space refinement uses
+\(O(c\log n)\)-bit integers for fixed \(c\), still a constant number of
+words in the asymptotic model.
+
+These are theoretical model guarantees.  They do not imply that hardware
+division, cache behavior, or a particular implementation has been benchmarked
+to be faster on every real platform.  Likewise, the online bound is stated
+per block or word operation; translating it to a per-bit engineering cost
+depends on the chosen block schedule and machine word size.
+
+\subsection{Scope of the Guarantees}
+
+The paper proves an exact-space representation for the stated uniform
+finite-alphabet vector, constant-time coordinate reads and writes on its Word
+RAM, a low-memory online prefix-free code, and local reversible base
+conversion.  It does not prove a locally decodable arithmetic code for biased
+distributions, a zero-redundancy rank/select structure, or a general
+dictionary solution.  Nor does prefix-free preprocessing automatically prove
+the security of every cryptographic construction: the primitive, padding,
+and security model still require a separate argument, as discussed in
+Section~\ref{sec:related-work}.  The results also do not assert optimality for
+arbitrary compression models or superior performance on every physical
+machine.
