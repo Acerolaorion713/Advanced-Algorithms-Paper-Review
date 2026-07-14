@@ -13,7 +13,6 @@
 ```text
 Advanced-Algorithms-Paper-Review/
 ├── README.md
-├── 计划书.md
 ├── paper/
 │   └── Changing_base_without_losing_space.pdf
 ├── notes/
@@ -24,7 +23,8 @@ Advanced-Algorithms-Paper-Review/
 │   ├── day05_information_carriers.md
 │   ├── day06_vector_representation.md
 │   ├── day07_online_prefix_free_encoding.md
-│   └── day08_related_work.md
+│   ├── day08_related_work.md
+│   └── day09_proof_checklist.md
 ├── ai_logs/
 │   ├── day01_ai_log.md
 │   ├── day02_ai_log.md
@@ -33,7 +33,8 @@ Advanced-Algorithms-Paper-Review/
 │   ├── day05_ai_log.md
 │   ├── day06_ai_log.md
 │   ├── day07_ai_log.md
-│   └── day08_ai_log.md
+│   ├── day08_ai_log.md
+│   └── day09_ai_log.md
 └── review/
     ├── main.tex
     ├── references.bib
@@ -44,5 +45,6 @@ Advanced-Algorithms-Paper-Review/
         ├── 04_information_carriers.tex
         ├── 05_vector_representation.tex
         ├── 06_online_prefix_free_encoding.tex
-        └── 07_related_work.tex
+        ├── 07_related_work.tex
+        └── 08_correctness_and_analysis.tex
 ```
