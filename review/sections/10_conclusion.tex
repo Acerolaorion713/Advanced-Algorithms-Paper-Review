@@ -1,0 +1,99 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+\subsection{Summary}
+
+\textit{Changing Base without Losing Space} addresses two constrained
+base-conversion problems whose difficulty comes from a single source: data
+naturally belongs to ranges whose cardinalities are not powers of two, while
+binary memory is.  The paper's two main results are an exact-space vector
+representation that supports $O(1)$ reads and writes, and a low-memory online
+prefix-free code whose length is within $O(\log\log n)$ of the Elias-scale
+optimum.
+
+\subsection{The Unifying Role of Information Carriers}
+
+The common technical core is the information-carrier lemma
+(Lemma~\ref{lem:information-carrier}).  It shows that a sufficiently large
+carrier value can commit an old spill to binary memory while producing a new
+spill whose range is only $O(\sqrt{X})$.  The decoding guarantee is
+asymmetric in a crucial way: the old spill is recoverable from the memory
+content alone, without accessing the new spill.  This single condition is
+what keeps queries and updates local.
+
+The two main results are applications of the same lemma with different
+organizational structures.  Placing carriers in an implicit binary tree
+yields a vector data structure with $O(1)$-time reads and writes, exact
+space, and $O(\log n)$ precomputed constants.  Arranging carriers in a
+sequential chain with slowly growing block sizes yields an online prefix-free
+code with logarithmic working memory and near-optimal redundancy.
+
+\subsection{What Makes the Paper Surprising}
+
+The paper's most counter-intuitive contribution is the diagnosis that the
+space--locality tension comes from integral-bit rounding, not from
+information theory or lower bounds.  One usually thinks of information as the
+fundamental resource; here the real resource being wasted is the unused
+fraction of an integer bit.  Because the waste is structural rather than
+information-theoretic, it can be eliminated by structural means---local,
+reversible base conversion---without violating any known lower bound.
+
+The second surprise is that locality can be enforced by a purely syntactic
+decoding asymmetry.  Requiring that the old spill be extractable from the
+memory word alone is simple to state, easy to verify in the construction, and
+yet sufficient to ensure that no chain of dependencies can develop across
+carriers.
+
+\subsection{Theoretical Value}
+
+The paper makes a clean theoretical contribution.  It identifies a specific
+source of overhead, isolates it in a lemma with explicitly bounded
+redundancy, and demonstrates two different ways to organize carriers so that
+the accumulated overhead is either $o(1)$ (vector) or $O(\log\log n)$
+(stream).  The constructions are explicit, the bounds are stated with
+concrete asymptotic parameters, and the proof obligations are clearly
+decomposed.
+
+The vector result is, within its model, definitive: no representation of
+$A[1..n]$ over $\Sigma$ can use fewer than $\lceil n\log_2\Sigma\rceil$
+bits, and this representation achieves that bound exactly while supporting
+$O(1)$ reads and writes.  The online encoding result is near-optimal within
+$O(\log\log n)$ and refutes a natural conjecture about the cost of online
+prefix-freeness.
+
+\subsection{Practical Applicability}
+
+The results are stated in the Word RAM model with unit-cost multiplication
+and division.  Their translation to practical performance depends on the
+concrete word size, division latency, cache organization, and the overhead of
+precomputed constants.  The paper does not provide, and does not claim to
+provide, implementation benchmarks or evidence of deployment.  The
+contribution is primarily to the theoretical understanding of what is
+possible, not to a specific engineering artifact.
+
+The uniform-alphabet assumption also limits direct applicability.  Many
+practical compression and storage systems deal with skewed distributions,
+variable-length objects, or richer query requirements.  The paper's
+techniques do not directly address those settings, although the underlying
+insight---that fractional information can be accumulated and committed
+locally---may inform future work in those directions.
+
+\subsection{Final Assessment}
+
+\textit{Changing Base without Losing Space} is a crisp, self-contained paper
+that solves two well-motivated problems with a single, elegant primitive.
+Its impact is primarily conceptual: it shows that the integral-bit barrier is
+avoidable for uniform finite alphabets, that round-by-round local conversion
+can eliminate redundancy, and that one asymmetric decoding condition suffices
+to guarantee locality across two quite different organizational schemes.
+
+The paper does not claim to solve all of succinct data structures, and it
+should not be assessed as if it did.  Within its precisely stated model and
+problem scope, the results are complete, the analysis is rigorous, and the
+exposition builds from a concrete example (SOLE) to an abstract lemma
+(information carrier) to two clean theorems.  Its limitations---the Word RAM
+assumptions, the uniform-alphabet restriction, and the absence of
+implementation evidence---are acknowledged or clearly visible from the
+problem statement.  The paper remains a noteworthy contribution to the theory
+of succinct representation and a thought-provoking demonstration that
+changing base need not cost space.
