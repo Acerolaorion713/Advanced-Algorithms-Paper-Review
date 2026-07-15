@@ -127,4 +127,4 @@ pdflatex main.tex
 | 7 | Online prefix-free encoding | notes/day07, ai_logs/day07, review section 06 |
 | 8 | Related work 与 bibliography | notes/day08, ai_logs/day08, review section 07 |
 | 9 | Correctness 与 complexity 审计 | notes/day09, ai_logs/day09, review section 08 |
-| 10 | 最终整合与项目完成 | notes/day10, ai_logs/day10, review sections 09--10, review_condensed.tex, PDFs, README |
+| 10 | 最终整合与项目完成 | review sections 09--10, PDFs, README |
